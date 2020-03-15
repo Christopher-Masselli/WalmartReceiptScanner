@@ -6,11 +6,6 @@ Vue.use(VueRouter);
 
 const routes = [
   {
-    path: "/",
-    name: "Home",
-    component: Home
-  },
-  {
     path: "/about",
     name: "About",
     // route level code-splitting
