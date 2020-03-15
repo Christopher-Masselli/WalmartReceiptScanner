@@ -40,7 +40,9 @@
   ],
   "exclude": [
     "node_modules",
-    "/node_modules/"
+    "/node_modules/",
+    "src/data.js",
+    "/src/data.js"
   ],
   "typeRoots": [
     "node_modules/@types"
