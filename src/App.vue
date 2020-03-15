@@ -60,7 +60,6 @@ export default Vue.extend({
       this.ids = [];
       const worker = createWorker({
         logger: (m: any) => {
-          console.log(m);
           this.debug= m.status;
           if (m.jobId) {
             this.progress = m.progress * 100;
@@ -78,27 +77,36 @@ export default Vue.extend({
       })(this.getids);
     },
     getids() {
-      console.log('getting');
-      const digitReg = /(\d{12})/g;
+      this.debug = 'Getting Ids';
+      const digitReg = /(\d{9,})/g;
       console.log(this.text);
       const idsRaw = [...this.text.matchAll(digitReg)];
-      console.log(idsRaw);
       for (const raw of idsRaw ) {
         this.ids.push(raw[0]);
       }
       this.resolveids();
     },
     resolveids() {
+      this.debug = 'Resolving Ids';
+      const removeIds: String[] = [];
       for (const id of this.ids) {
         for (const item of testData.data) {
           if ( item.upc14.includes(id) || item.upc12.includes(id)) {
             console.log(item);
-            this.ids.splice(this.ids.indexOf(item), 1);
             this.items.push(item);
+            removeIds.push(id);
             break;
           }
         }
       }
+      const c = this.ids.map(function(e, i) {
+        return [e, removeIds[i]];
+      });
+      console.table(c);
+      for (const rId of removeIds) {
+        this.ids.splice(this.ids.indexOf(rId), 1);
+      }
+      this.debug = 'Finished';
     },
   },
 });
