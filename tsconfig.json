@@ -17,7 +17,9 @@
       "vue",
       "node",
       "dom-inputevent",
-      "tesseract"
+      "tesseract",
+      "blueimp-load-image",
+      "blueimp-load-image",
     ],
     "paths": {
       "@/*": [
