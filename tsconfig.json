@@ -20,6 +20,7 @@
       "tesseract",
       "blueimp-load-image",
       "blueimp-load-image",
+      "jquery"
     ],
     "paths": {
       "@/*": [

@@ -10,6 +10,7 @@
   "dependencies": {
     "@types/blueimp-load-image": "^2.23.5",
     "@types/dom-inputevent": "^1.0.5",
+    "@types/jquery": "^3.3.33",
     "@types/node": "^13.9.1",
     "blueimp-load-image": "^2.26.0",
     "core-js": "^3.6.4",

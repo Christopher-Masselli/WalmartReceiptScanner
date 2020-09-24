@@ -2,7 +2,7 @@
   <v-app>
 
     <v-content>
-      <v-btn @click="getids"
+      <v-btn @click="parseImage"
       >
         {{debug}}
       </v-btn>
@@ -13,6 +13,7 @@
       color="00F"
       :value="progress">
       </v-progress-circular>
+      <img ref="image"  />
       <v-data-table
         v-model="selected"
         :headers="headers"
@@ -44,11 +45,11 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import HelloWorld from './components/HelloWorld.vue';
 import {createWorker} from 'tesseract.js';
 import {stringify} from 'querystring';
 // import loadImage from 'blueimp-load-image';
 const testData = require('./jsonformatter.json');
+import ImageLoad from 'blueimp-load-image';
 // const groceryData = () => import('./data.js');
 // import tesseract from 'tesseract.js'
 
@@ -56,13 +57,12 @@ export default Vue.extend({
   name: 'App',
 
   components: {
-    HelloWorld,
   },
   computed: {
     totalPrice() {
       return this.finale.reduce((prev: any, item: any, index: Number)=>{
         if (item.price != null) {
-          return prev + parseFloat(item.price);
+          return prev + parseFloat(item.price) * (item.qty ? item.qty : 1);
         }
         return prev;
       }, 0 as number );
@@ -100,7 +100,7 @@ export default Vue.extend({
     total: '',
     output: 'null',
     lines: new Map(),
-    src: 'null' as any,
+    src: null as any,
     file: null as any,
     finale: [] as String[],
     headers: [
@@ -112,6 +112,7 @@ export default Vue.extend({
       },
       {text: 'Id', value: 'id'},
       {text: 'Price($)', value: 'price'},
+      {text: 'Quanity', value: 'qty'},
     ],
   }),
   methods: {
@@ -119,8 +120,16 @@ export default Vue.extend({
       this.output = files.length;
       this.debug = 'loading';
       this.file = files[0];
+
       this.text = '';
       this.ids = [];
+      const image = this.$refs['image'] as any;
+      image.src = (window.URL ?
+       URL : webkitURL).createObjectURL(this.file);
+      this.debug = 'loaded';
+      await this.format();
+    },
+    parseImage() {
       const worker = createWorker({
         logger: (m: any) => {
           this.debug = m.status;
@@ -130,7 +139,6 @@ export default Vue.extend({
           }
         },
       });
-      this.src = (window.URL ? URL : webkitURL).createObjectURL(this.file);
       (async (fnc : any) => {
         this.debug = 'starting worker';
         await worker.load();
@@ -139,6 +147,7 @@ export default Vue.extend({
         this.progress = .0001;
         const {data: {text}} = await worker.recognize(this.file);
         this.text = text;
+        console.log(text);
         await worker.terminate();
         fnc();
       })(this.getids);
@@ -146,7 +155,7 @@ export default Vue.extend({
     getids() {
       this.debug = 'Getting Ids';
       const digitReg = /(\d{9,})/g;
-      const totalReg = /((TOTAL)+ *(\d+\.*\d*){1})/g;
+      const totalReg = /((\w*TOTAL)+ *(\d+\.*\d*){1})/g;
       const lineReg = /(.+(\d{9,}){1}.+)|(.*(AT).*(FOR).*)/g;
       const idsRaw = [...this.text.matchAll(digitReg)];
       const receiptLines = [...this.text.matchAll(lineReg)];
@@ -157,6 +166,7 @@ export default Vue.extend({
         let id : string;
         let price : string;
         const reversed = line[0].split(' ').reverse();
+        console.log(line);
 
         if (reversed != undefined && reversed.length >= 2) {
           if (reversed.includes('FOR')) {
@@ -180,7 +190,10 @@ export default Vue.extend({
                   .reverse().toString()).replace(',', ' ');
               price = reversed[1];
             }
-            this.lines.set(id, {name, price});
+            this.lines.set(id, {name,
+              price,
+              qty: this.lines.get(id) ? this.lines.get(id).qty + 1 : 1,
+            });
           }
           prev = reversed;
         }
@@ -203,23 +216,55 @@ export default Vue.extend({
           }
         }
       }
-      this.finale = this.ids.reduce(
-          (outputArray: any[], cId: String, index: Number) => {
-            if (this.lines.has(cId)) {
-              if (this.itemsFound.has(cId)) {
-                outputArray.push({
-                  id: cId,
-                  ...this.lines.get(cId),
-                  name: this.itemsFound.get(cId).name,
-                });
-              } else {
-                outputArray.push({id: cId, ...this.lines.get(cId)});
-              }
-            }
-            return outputArray;
-          }, [] as String[]);
+      for (const line of this.lines ) {
+        this.finale.push({id: line[0], ...line[1]});
+      }
+      // this.finale = this.ids.reduce(
+      //     (outputArray: any[], cId: String, index: Number) => {
+      //       if (this.lines.has(cId)) {
+      //         if (this.itemsFound.has(cId)) {
+      //           outputArray.push({
+      //             id: cId,
+      //             ...this.lines.get(cId),
+      //             name: this.itemsFound.get(cId).name,
+      //           });
+      //         } else {
+      //           outputArray.push({id: cId, ...this.lines.get(cId)});
+      //         }
+      //       }
+      //       return outputArray;
+      //     }, [] as String[]);
 
       this.debug = 'Finished';
+    },
+    async format() {
+      const image = this.$refs['image'] as HTMLImageElement;
+      this.debug = 'Rotating';
+      // eslint-disable-next-line new-cap
+      await ImageLoad(
+          image.src,
+          await this.displayMetaData,
+          {meta: true,
+            orientation: true,
+            maxWidth: '400px',
+            maxHeight: '500px',
+          } as any,
+      );
+    },
+    displayMetaData(img : any, data : any) {
+      this.debug = 'setting rotation';
+
+      const image = this.$refs['image'] as any;
+      img.toBlob((blob : any) => {
+        this.file= blob;
+      }, 'image/jpeg', 1);
+      image.src = img.toDataURL();
+      if (!data) return;
+      const exif = data.exif;
+      // const iptc = data.iptc;
+      if (exif) {
+        console.log(exif.get('Orientation'));
+      };
     },
   },
 });
